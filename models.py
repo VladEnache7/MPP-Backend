@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey
 
 
 class User(Base_database):
-    __tablename__ = "Users"
+    __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
@@ -15,8 +15,8 @@ class User(Base_database):
 
 # Create a class that will be used to create a table in the database
 class Movie(Base_database):
-    # __tablename__ = 'movies3'
-    __tablename__ = 'Movies'
+    __tablename__ = 'movies3'
+    # __tablename__ = 'Movies'
 
     id = Column(Integer, primary_key=True)
     name = Column(String, unique=True, index=True)
@@ -32,8 +32,7 @@ class Movie(Base_database):
 
 
 class Character(Base_database):
-    # __tablename__ = 'characters'
-    __tablename__ = 'Characters'
+    __tablename__ = 'characters'
 
     id = Column(Integer, primary_key=True)
     name = Column(String)

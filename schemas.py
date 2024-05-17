@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -20,6 +22,7 @@ class MovieBase(BaseModel):
     genre: str
     description: str
     nrCharacters: int = 0
+    editorId: Optional[int] = None
 
 
 class MovieModel(MovieBase):
@@ -34,6 +37,7 @@ class CharacterBase(BaseModel):
     name: str
     movieName: str
     description: str
+    editorId: Optional[int] = None
 
 
 class CharacterModel(CharacterBase):
