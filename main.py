@@ -16,7 +16,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from auth_token import ALGORITHM, SECRET_KEY, get_password_hash
+from auth_token import ALGORITHM, SECRET_KEY, get_password_hash, decode_access_token
 
 # Create a new FastAPI instance
 app = FastAPI()
@@ -389,6 +389,49 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 @app.get("/users/me/")
 async def read_users_me(current_user: str = Depends(get_current_user)):
     return current_user
+
+
+# TODO: add token verification for each api call
+@app.get("/items/")
+async def read_items(token: str = Depends(oauth2_scheme)):
+    payload = decode_access_token(token)
+    return {"token": payload}
+
+
+# <todo> GET ALL characters for a specific username
+@app.get('/characters/username/{username}', response_model=List[CharacterModel])
+async def get_user(db_users: db_dependency_users, db_characters: db_dependency_characters, username: str):
+    # a GET route that retrieves all the characters created by a specific user.
+    # It uses the username parameter to identify the user and the List[CharacterModel] model to shape the response data.
+    userId = EntitiesRepo().get_id_by_username(db_users, username)
+    if userId is None:
+        raise HTTPException(status_code=404, detail='User not found')
+    characters = EntitiesRepo().get_characters_by_user(db_characters, username)
+    return characters
+
+
+# <todo> GET ALL movies for a specific username
+@app.get('/movies/username/{username}', response_model=List[MovieModel])
+async def get_user_movies(db_users: db_dependency_users, db_movies: db_dependency_movies, username: str):
+    # a GET route that retrieves all the movies created by a specific user.
+    # It uses the username parameter to identify the user and the List[MovieModel] model to shape the response data.
+    print(f'username: {username}')
+    userId = EntitiesRepo().get_id_by_username(db_users, username)
+    print(f'userId: {userId}')
+    if userId is None:
+        raise HTTPException(status_code=404, detail='User not found')
+    movies = EntitiesRepo().get_movies_by_userId(db_movies, userId)
+    return movies
+
+
+# <todo> GET ALL movies for a specific user id
+@app.get('/movies/userid/{userId}', response_model=List[MovieModel])
+async def get_user_movies_by_id(db_users: db_dependency_users, db_movies: db_dependency_movies, userId: int):
+    # a GET route that retrieves all the movies created by a specific user.
+    # It uses the username parameter to identify the user and the List[MovieModel] model to shape the response data.
+    print(f'userId: {userId}')
+    movies = EntitiesRepo().get_movies_by_userId(db_movies, userId)
+    return movies
 
 
 if __name__ == '__main__':

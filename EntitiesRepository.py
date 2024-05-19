@@ -272,20 +272,20 @@ class EntitiesRepo:
         return db.query(models.Character).count()
 
     @staticmethod
-    def get_id_of_user(db: db_dependency_users, username):
+    def get_id_by_username(db: db_dependency_users, username: str):
         user = db.query(models.User).filter(models.User.username == username).first()
         if user is None:
             return None
         return user.id
 
     @staticmethod
-    def get_movies_by_user(db: db_dependency_movies, username):
-        user_id = EntitiesRepo().get_id_of_user(db, username)
+    def get_movies_by_userId(db: db_dependency_movies, user_id):
+        # user_id = EntitiesRepo().get_id_by_username(db, username)
         return db.query(models.Movie).filter(models.Movie.editorId == user_id).all()
 
     @staticmethod
     def get_characters_by_user(db: db_dependency_characters, username):
-        user_id = EntitiesRepo().get_id_of_user(db, username)
+        user_id = EntitiesRepo().get_id_by_username(db, username)
         return db.query(models.Character).filter(models.Character.editorId == user_id).all()
 
     @staticmethod
