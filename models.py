@@ -1,5 +1,5 @@
 from database import Base_database
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 
 
 class User(Base_database):
@@ -25,7 +25,7 @@ class Movie(Base_database):
     genre = Column(String)
     description = Column(Integer)
     nrCharacters = Column(Integer, default=0)
-    editorId = Column(Integer, ForeignKey("Users.id"))
+    editorId = Column(Integer, default=None)
 
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
@@ -38,7 +38,16 @@ class Character(Base_database):
     name = Column(String)
     movieName = Column(String)
     description = Column(String)
-    editorId = Column(Integer, ForeignKey("Users.id"))
+    editorId = Column(Integer, default=None)
 
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+
+class Token(Base_database):
+    __tablename__ = "tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String, unique=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    expiry_date = Column(DateTime)

@@ -5,13 +5,11 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from typing import List, Annotated
-
 import models
 from database import SessionLocalMovies, engine
 from fastapi.middleware.cors import CORSMiddleware
 from EntitiesRepository import EntitiesRepo
 from schemas import MovieBase, MovieModel, CharacterModel, CharacterBase, LoginRegisterModel, TokenData
-
 from fastapi.encoders import jsonable_encoder
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -44,8 +42,11 @@ def get_database():
 db_dependency_movies = Annotated[models.Movie, Depends(get_database)]
 db_dependency_characters = Annotated[models.Character, Depends(get_database)]
 db_dependency_users = Annotated[models.User, Depends(get_database)]
+db_dependency_tokens = Annotated[models.Token, Depends(get_database)]
 
 models.Base_database.metadata.create_all(bind=engine)
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -90,25 +91,28 @@ async def notify_clients():
 
 # <todo> GET ALL movies from the database
 @app.get('/movies', response_model=List[MovieModel])
-async def get_movies(db: db_dependency_movies, skip: int = 0, limit: int = 100):
+async def get_movies(db: db_dependency_movies, skip: int = 0, limit: int = 50, token: str = Depends(oauth2_scheme)):
     #  get_movies is a GET route that retrieves a list of movies from the database.
     #  It uses the MovieModel model to shape the response data.
+    EntitiesRepo().verify_token(db, token)
     movies = EntitiesRepo().get_movies_skip_limit(db, skip, limit)
     return movies
 
 
 # <todo> GET ALL movies names from the database
 @app.get('/movies/names', response_model=List[str])
-async def get_movies_names(db: db_dependency_movies):
+async def get_movies_names(db: db_dependency_movies, token: str = Depends(oauth2_scheme)):
     #  get_movies is a GET route that retrieves a list of movies from the database.
     #  It uses the MovieModel model to shape the response data.
+    EntitiesRepo().verify_token(db, token)
     movies_names = EntitiesRepo().get_movies_names(db)
     return movies_names
 
 
 # <todo> GET a single movie from the database
 @app.get('/movies/{movie_id}', response_model=MovieModel)
-async def get_movie(db: db_dependency_movies, movie_id: int):
+async def get_movie(db: db_dependency_movies, movie_id: int, token: str = Depends(oauth2_scheme)):
+    EntitiesRepo().verify_token(db, token)
     movie = EntitiesRepo().get_movie(db, movie_id)
     if movie is None:
         raise HTTPException(status_code=404, detail='Movie not found')
@@ -117,9 +121,10 @@ async def get_movie(db: db_dependency_movies, movie_id: int):
 
 # <todo> CREATE a new movie in the database
 @app.post('/movies', response_model=MovieModel)
-async def add_movie(db: db_dependency_movies, movie: MovieBase):
+async def add_movie(db: db_dependency_movies, movie: MovieBase, token: str = Depends(oauth2_scheme)):
     # a POST route that creates a new movie in the database.
     # It uses the MovieBase model to validate the request body and the MovieModel model to shape the response data.
+    EntitiesRepo().verify_token(db, token)
     added_movie = EntitiesRepo().add_movie(db, movie)
     await notify_clients()
     return added_movie
@@ -127,9 +132,10 @@ async def add_movie(db: db_dependency_movies, movie: MovieBase):
 
 # <todo> UPDATE a movie in the database
 @app.put('/movies/{movie_id}', response_model=MovieModel)
-async def update_movie(db: db_dependency_movies, movie_id: int, movie: MovieBase):
+async def update_movie(db: db_dependency_movies, movie_id: int, movie: MovieBase, token: str = Depends(oauth2_scheme)):
     # a PUT route that updates a movie in the database by its id.
     # It uses the MovieBase model to validate the request body and the MovieModel model to shape the response data.
+    EntitiesRepo().verify_token(db, token)
     updated_movie = EntitiesRepo().update_movie(db, movie_id, movie)
     await notify_clients()
     return updated_movie
@@ -137,7 +143,7 @@ async def update_movie(db: db_dependency_movies, movie_id: int, movie: MovieBase
 
 # <todo> DELETE a movie from the database
 @app.delete('/movies/{movie_id}')
-async def delete_movie(db: db_dependency_movies, movie_id: int):
+async def delete_movie(db: db_dependency_movies, movie_id: int, token: str = Depends(oauth2_scheme)):
     # a DELETE route that deletes a movie from the database by its id.
     EntitiesRepo().delete_movie(db, movie_id)
     await notify_clients()
@@ -221,17 +227,20 @@ async def generate_movies(db: db_dependency_movies, number: int, background_task
 
 # <todo> GET ALL characters from the database
 @app.get('/characters', response_model=List[CharacterModel])
-async def get_characters(db: db_dependency_characters, skip: int = 0, limit: int = 100):
+async def get_characters(db: db_dependency_characters, skip: int = 0, limit: int = 50,
+                         token: str = Depends(oauth2_scheme)):
     # a GET route that retrieves a list of characters from the database.
     # It uses the CharacterModel model to shape the response data.
+    EntitiesRepo().verify_token(db, token)
     characters = EntitiesRepo().get_characters_skip_limit(db, skip, limit)
     return characters
 
 
 # <todo> GET a single character from the database
 @app.get('/characters/{character_id}', response_model=CharacterModel)
-async def get_character(db: db_dependency_characters, character_id: int):
+async def get_character(db: db_dependency_characters, character_id: int, token: str = Depends(oauth2_scheme)):
     # a GET route that retrieves a character from the database by its id.
+    EntitiesRepo().verify_token(db, token)
     character = EntitiesRepo().get_character(db, character_id)
     if character is None:
         raise HTTPException(status_code=404, detail='Character not found')
@@ -241,9 +250,10 @@ async def get_character(db: db_dependency_characters, character_id: int):
 # <todo> CREATE a new character in the database
 @app.post('/characters', response_model=CharacterModel)
 async def add_character(db_characters: db_dependency_characters, db_movies: db_dependency_movies,
-                        character: CharacterBase):
+                        character: CharacterBase, token: str = Depends(oauth2_scheme)):
     # a POST route that creates a new character in the database.
     # It uses the CharacterModel model to validate the request body and shape the response data.
+    EntitiesRepo().verify_token(db_characters, token)
     added_character = EntitiesRepo().add_character(db_characters, character)
     EntitiesRepo().update_aggregated_column_movies(db_movies, db_characters)
     await notify_clients()
@@ -252,7 +262,8 @@ async def add_character(db_characters: db_dependency_characters, db_movies: db_d
 
 # <todo> UPDATE a character in the database
 @app.put('/characters/{character_id}', response_model=CharacterModel)
-async def update_character(db: db_dependency_characters, character_id: int, character: CharacterBase):
+async def update_character(db: db_dependency_characters, character_id: int, character: CharacterBase,
+                           token: str = Depends(oauth2_scheme)):
     # a PUT route that updates a character in the database by its id.
     # It uses the CharacterModel model to validate the request body and shape the response data.
     updated_character = EntitiesRepo().update_character(db, character_id, character)
@@ -262,8 +273,9 @@ async def update_character(db: db_dependency_characters, character_id: int, char
 
 # <todo> DELETE a character from the database
 @app.delete('/characters/{character_id}')
-async def delete_character(db: db_dependency_characters, character_id: int):
+async def delete_character(db: db_dependency_characters, character_id: int, token: str = Depends(oauth2_scheme)):
     # a DELETE route that deletes a character from the database by its id.
+    EntitiesRepo().verify_token(db, token)
     EntitiesRepo().delete_character(db, character_id)
     await notify_clients()
     return {'message': 'Character deleted successfully'}
@@ -319,11 +331,9 @@ async def get_characters_count(db: db_dependency_characters):
 
 # <todo> GENERATE n number of characters in the database
 @app.post('/characters/generate/{number}', response_model=dict)
-async def generate_characters(db: db_dependency_characters, number: int):
+async def generate_characters(db: db_dependency_characters, number: int, token: str = Depends(oauth2_scheme)):
     # a POST route that generates a specified number of random characters in the database.
-    # put 10 threads to generate characters
-    # EntitiesRepo().generate_and_add_characters(db, number)
-    # await notify_clients()
+    EntitiesRepo().verify_token(db, token)
     threads = []
 
     for i in range(10):
@@ -343,11 +353,11 @@ async def generate_characters(db: db_dependency_characters, number: int):
 
 # <todo> login - verify user and password
 @app.post('/auth/login/')
-async def login(db: db_dependency_users, login_model: LoginRegisterModel):
+async def login(db_tokens: db_dependency_tokens, db_users: db_dependency_users, login_model: LoginRegisterModel):
     print(f'username: {login_model.username}, hashedPassword: {login_model.hashedPassword}')
     # a POST route that verifies the username and password.
     # It uses the username and hashedPassword parameters to verify the user and password.
-    return EntitiesRepo().login(db, login_model.username, login_model.hashedPassword)
+    return EntitiesRepo().login(db_tokens, db_users, login_model.username, login_model.hashedPassword)
 
 
 # <todo> register - add a new user
@@ -362,34 +372,42 @@ async def register(db: db_dependency_users, login_model: LoginRegisterModel):
     return EntitiesRepo().register(db, login_model.username, hashed_password)
 
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+# <todo> logout - remove the token from the database
+@app.post('/auth/logout/')
+async def logout(db_tokens: db_dependency_tokens, token: str = Depends(oauth2_scheme)):
+    # a POST route that removes the token from the database.
+    # It uses the token parameter to identify the token to remove.
+    return EntitiesRepo().logout(db_tokens, token)
 
 
-# TODO I do not understand yet what is the purpose of this function
-# async def get_current_user(token: str = Depends(oauth2_scheme)):
-#     credentials_exception = HTTPException(
-#         status_code=status.HTTP_401_UNAUTHORIZED,
-#         detail="Could not validate credentials",
-#         headers={"WWW-Authenticate": "Bearer"},
-#     )
-#     try:
-#         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-#         username: str = payload.get("sub")
-#         if username is None:
-#             raise credentials_exception
-#         token_data = TokenData(username=username)
-#     except JWTError:
-#         raise credentials_exception
-#     user = EntitiesRepo().get_user(username)
-#     if user is None:
-#         raise credentials_exception
-#     return user
+"""
+TODO I do not understand yet what is the purpose of this function
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except JWTError:
+        raise credentials_exception
+    user = EntitiesRepo().get_user(username)
+    if user is None:
+        raise credentials_exception
+    return user
+"""
 
-
-# @app.get("/users/me/", response_model=User)
-# @app.get("/users/me/")
-# async def read_users_me(current_user: str = Depends(get_current_user)):
-#     return current_user
+"""
+@app.get("/users/me/", response_model=User)
+@app.get("/users/me/")
+async def read_users_me(current_user: str = Depends(get_current_user)):
+    return current_user
+"""
 
 
 # TODO: add token verification for each api call
@@ -401,9 +419,11 @@ async def read_items(token: str = Depends(oauth2_scheme)):
 
 # <todo> GET ALL characters for a specific username
 @app.get('/characters/username/{username}', response_model=List[CharacterModel])
-async def get_user(db_users: db_dependency_users, db_characters: db_dependency_characters, username: str):
+async def get_user(db_users: db_dependency_users, db_characters: db_dependency_characters, username: str,
+                   token: str = Depends(oauth2_scheme)):
     # a GET route that retrieves all the characters created by a specific user.
     # It uses the username parameter to identify the user and the List[CharacterModel] model to shape the response data.
+    EntitiesRepo().verify_token(db_users, token)
     userId = EntitiesRepo().get_id_by_username(db_users, username)
     if userId is None:
         raise HTTPException(status_code=404, detail='User not found')
@@ -413,15 +433,17 @@ async def get_user(db_users: db_dependency_users, db_characters: db_dependency_c
 
 # <todo> GET ALL movies for a specific username
 @app.get('/movies/username/{username}', response_model=List[MovieModel])
-async def get_user_movies(db_users: db_dependency_users, db_movies: db_dependency_movies, username: str):
-    # a GET route that retrieves all the movies created by a specific user.
+async def get_user_movies(db_users: db_dependency_users, db_movies: db_dependency_movies, username: str, skip: int = 0,
+                          limit: int = 50, token: str = Depends(oauth2_scheme)):
+    # a GET route that retrieves
     # It uses the username parameter to identify the user and the List[MovieModel] model to shape the response data.
+    EntitiesRepo().verify_token(db_users, token)
     print(f'username: {username}')
     userId = EntitiesRepo().get_id_by_username(db_users, username)
     print(f'userId: {userId}')
     if userId is None:
         raise HTTPException(status_code=404, detail='User not found')
-    movies = EntitiesRepo().get_movies_by_userId(db_movies, userId)
+    movies = EntitiesRepo().get_movies_by_userId(db_movies, userId, skip, limit)
     return movies
 
 

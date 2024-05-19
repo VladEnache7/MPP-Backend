@@ -22,6 +22,7 @@ def get_database():
 db_dependency_movies = Annotated[models.Movie, Depends(get_database)]
 db_dependency_characters = Annotated[models.Character, Depends(get_database)]
 db_dependency_users = Annotated[models.User, Depends(get_database)]
+db_dependency_tokens = Annotated[models.Token, Depends(get_database)]
 
 
 class EntitiesRepo:
@@ -83,7 +84,8 @@ class EntitiesRepo:
         if db_movie is None:
             raise HTTPException(status_code=404, detail='Movie not found')
         for key, value in movie.dict().items():
-            setattr(db_movie, key, value)
+            if key != "nrCharacters" and key != "editorId":
+                setattr(db_movie, key, value)
         db.commit()
         db.refresh(db_movie)
         return db_movie
@@ -186,7 +188,8 @@ class EntitiesRepo:
         if db_character is None:
             raise HTTPException(status_code=404, detail='Character not found')
         for key, value in character.dict().items():
-            setattr(db_character, key, value)
+            if key != "editorId":
+                setattr(db_character, key, value)
         db.commit()
         db.refresh(db_character)
         return db_character
@@ -279,9 +282,9 @@ class EntitiesRepo:
         return user.id
 
     @staticmethod
-    def get_movies_by_userId(db: db_dependency_movies, user_id):
+    def get_movies_by_userId(db: db_dependency_movies, user_id, skip: int, limit: int):
         # user_id = EntitiesRepo().get_id_by_username(db, username)
-        return db.query(models.Movie).filter(models.Movie.editorId == user_id).all()
+        return db.query(models.Movie).filter(models.Movie.editorId == user_id).offset(skip).limit(limit).all()
 
     @staticmethod
     def get_characters_by_user(db: db_dependency_characters, username):
@@ -289,19 +292,27 @@ class EntitiesRepo:
         return db.query(models.Character).filter(models.Character.editorId == user_id).all()
 
     @staticmethod
-    def login(db: db_dependency_users, username, password):
-        user = db.query(models.User).filter(models.User.username == username).first()
+    def login(db_tokens: db_dependency_tokens, db_users: db_dependency_users, username, password):
+        user = db_users.query(models.User).filter(models.User.username == username).first()
         if user is None or not verify_password(password, user.hashedPassword):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": user.username}, expires_delta=access_token_expires
         )
-        return {"token": access_token, "token_type": "bearer"}
+        expire = datetime.utcnow() + access_token_expires
+        # Save the token in the database
+        db_token = models.Token(token=access_token, user_id=user.id, expiry_date=expire)
+        db_tokens.add(db_token)
+        db_tokens.commit()
+        db_tokens.refresh(db_token)
+
+        return {"token": access_token, "token_type": "bearer", "id": user.id}
 
     @staticmethod
     def register(db: db_dependency_users, username, hashedPassword):
@@ -311,6 +322,30 @@ class EntitiesRepo:
         db.add(new_user)
         db.commit()
         return True
+
+    @staticmethod
+    def logout(db: db_dependency_tokens, token):
+        db_token = db.query(models.Token).filter(models.Token.token == token).first()
+        if db_token is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token - not in the database",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        db.delete(db_token)
+        db.commit()
+        return {"message": "Logout successful"}
+
+    @staticmethod
+    def verify_token(db: db_dependency_tokens, token):
+        db_token = db.query(models.Token).filter(models.Token.token == token).first()
+        if db_token is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token - not in the database",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return {"message": "Token is valid"}
 
 
 if __name__ == '__main__':
