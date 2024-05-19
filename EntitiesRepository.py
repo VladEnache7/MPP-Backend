@@ -301,7 +301,7 @@ class EntitiesRepo:
         access_token = create_access_token(
             data={"sub": user.username}, expires_delta=access_token_expires
         )
-        return {"access_token": access_token, "token_type": "bearer"}
+        return {"token": access_token, "token_type": "bearer"}
 
     @staticmethod
     def register(db: db_dependency_users, username, hashedPassword):
