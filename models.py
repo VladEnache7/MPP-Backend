@@ -42,12 +42,3 @@ class Character(Base_database):
 
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
-
-
-class Token(Base_database):
-    __tablename__ = "tokens"
-
-    id = Column(Integer, primary_key=True, index=True)
-    token = Column(String, unique=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
-    expiry_date = Column(DateTime)

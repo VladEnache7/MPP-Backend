@@ -8,7 +8,8 @@ from starlette import status
 import models
 from database import SessionLocalMovies
 from schemas import MovieBase, CharacterBase
-from auth_token import create_access_token, verify_password, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES
+from auth_token import create_access_token, verify_password, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES, \
+    decode_access_token
 
 
 def get_database():
@@ -22,7 +23,6 @@ def get_database():
 db_dependency_movies = Annotated[models.Movie, Depends(get_database)]
 db_dependency_characters = Annotated[models.Character, Depends(get_database)]
 db_dependency_users = Annotated[models.User, Depends(get_database)]
-db_dependency_tokens = Annotated[models.Token, Depends(get_database)]
 
 
 class EntitiesRepo:
@@ -292,7 +292,7 @@ class EntitiesRepo:
         return db.query(models.Character).filter(models.Character.editorId == user_id).all()
 
     @staticmethod
-    def login(db_tokens: db_dependency_tokens, db_users: db_dependency_users, username, password):
+    def login(db_users: db_dependency_users, username, password):
         user = db_users.query(models.User).filter(models.User.username == username).first()
         if user is None or not verify_password(password, user.hashedPassword):
             raise HTTPException(
@@ -305,13 +305,6 @@ class EntitiesRepo:
         access_token = create_access_token(
             data={"sub": user.username}, expires_delta=access_token_expires
         )
-        expire = datetime.utcnow() + access_token_expires
-        # Save the token in the database
-        db_token = models.Token(token=access_token, user_id=user.id, expiry_date=expire)
-        db_tokens.add(db_token)
-        db_tokens.commit()
-        db_tokens.refresh(db_token)
-
         return {"token": access_token, "token_type": "bearer", "id": user.id}
 
     @staticmethod
@@ -324,25 +317,17 @@ class EntitiesRepo:
         return True
 
     @staticmethod
-    def logout(db: db_dependency_tokens, token):
-        db_token = db.query(models.Token).filter(models.Token.token == token).first()
-        if db_token is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token - not in the database",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        db.delete(db_token)
-        db.commit()
+    def logout(token):
         return {"message": "Logout successful"}
 
     @staticmethod
-    def verify_token(db: db_dependency_tokens, token):
-        db_token = db.query(models.Token).filter(models.Token.token == token).first()
-        if db_token is None:
+    def verify_token(token):
+        # db_token = db.query(models.Token).filter(models.Token.token == token).first()
+        payload = decode_access_token(token)
+        if payload is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token - not in the database",
+                detail="Invalid token - JWTError",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         return {"message": "Token is valid"}
