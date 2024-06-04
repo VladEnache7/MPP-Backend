@@ -332,6 +332,31 @@ class EntitiesRepo:
             )
         return {"message": "Token is valid"}
 
+    @staticmethod
+    def update_aggregated_column_users(db):
+        users = db.query(models.User).all()
+        for user in users:
+            user.nrMovies = len(db.query(models.Movie).filter(models.Movie.editorId == user.id).all())
+            user.nrCharacters = len(db.query(models.Character).filter(models.Character.editorId == user.id).all())
+            db.commit()
+            db.refresh(user)
+
+    @staticmethod
+    def get_non_admin_users(db: db_dependency_users):
+        # update the aggregated column in the users table
+        EntitiesRepo().update_aggregated_column_users(db)
+
+        return db.query(models.User).filter(models.User.username != 'admin').all()
+
+    @staticmethod
+    def remove_user_by_id(db: db_dependency_users, user_id):
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if user is None:
+            raise HTTPException(status_code=404, detail='User not found')
+        db.delete(user)
+        db.commit()
+        return {"message": "User deleted successfully"}
+
 
 if __name__ == '__main__':
     print(EntitiesRepo().get_all_movies())

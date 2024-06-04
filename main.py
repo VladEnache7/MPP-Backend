@@ -90,8 +90,7 @@ async def notify_clients():
 
 # <todo> GET ALL movies from the database
 @app.get('/movies', response_model=List[MovieModel])
-async def get_movies(db: db_dependency_movies, skip: int = 0, limit: int = 50, token: str = Depends(oauth2_scheme)):
-    EntitiesRepo().verify_token(token)
+async def get_movies(db: db_dependency_movies, skip: int = 0, limit: int = 50):
     movies = EntitiesRepo().get_movies_skip_limit(db, skip, limit)
     return movies
 
@@ -378,6 +377,20 @@ async def get_user_movies(db_users: db_dependency_users, db_movies: db_dependenc
 #     print(f'userId: {userId}')
 #     movies = EntitiesRepo().get_movies_by_userId(db_movies, userId)
 #     return movies
+
+
+# <todo> GET All non admin users
+@app.get('/users/')
+async def get_non_admin_users(db_users: db_dependency_users):
+    # EntitiesRepo().verify_token(token)
+    users = EntitiesRepo().get_non_admin_users(db_users)
+    return users
+
+
+# <todo> Remove User by id
+@app.delete('/users/{userId}')
+async def remove_user_by_id(db_users: db_dependency_users, userId: int):
+    return EntitiesRepo().remove_user_by_id(db_users, userId)
 
 
 if __name__ == '__main__':

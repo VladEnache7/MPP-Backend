@@ -8,6 +8,8 @@ class User(Base_database):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
     hashedPassword = Column(String)
+    nrMovies = Column(Integer, default=0)
+    nrCharacters = Column(Integer, default=0)
 
     def to_dict(self):
         return {c.name: getattr(self, c.name) for c in self.__table__.columns}
