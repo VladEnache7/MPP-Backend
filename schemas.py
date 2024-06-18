@@ -1,21 +1,26 @@
 from typing import Optional
-
 from pydantic import BaseModel
 
 
-# The code then defines two Pydantic models, MovieBase and MovieModel:
-# Create a class that will be used to create a table in the database
-
 class TokenData(BaseModel):
+    """
+    Pydantic model for token data. Represents the data contained in a token.
+    """
     username: str
 
 
 class LoginRegisterModel(BaseModel):
+    """
+    Pydantic model for login and registration data. Represents the data required for a user to login or register.
+    """
     username: str
     hashedPassword: str
 
 
 class MovieBase(BaseModel):
+    """
+    Pydantic model for movie data. Represents the base data required for a movie.
+    """
     name: str
     year: int
     duration: str
@@ -26,6 +31,9 @@ class MovieBase(BaseModel):
 
 
 class MovieModel(MovieBase):
+    """
+    Pydantic model for movie data. Inherits from MovieBase and adds an id field.
+    """
     id: int
 
     class Config:
@@ -34,6 +42,9 @@ class MovieModel(MovieBase):
 
 
 class CharacterBase(BaseModel):
+    """
+    Pydantic model for character data. Represents the base data required for a character.
+    """
     name: str
     movieName: str
     description: str
@@ -41,6 +52,9 @@ class CharacterBase(BaseModel):
 
 
 class CharacterModel(CharacterBase):
+    """
+    Pydantic model for character data. Inherits from CharacterBase and adds an id field.
+    """
     id: int
 
     class Config:
