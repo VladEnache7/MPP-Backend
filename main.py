@@ -539,7 +539,21 @@ async def get_user_movies(db_users: db_dependency_users, db_movies: db_dependenc
     return movies
 
 
-@app.get('/users/')
+@app.get('/users/basicUsers/')
+async def get_basic_users(db_users: db_dependency_users, token: str = Depends(oauth2_scheme)):
+    """
+    Get all basic users.
+    :param db_users: The database dependency that provides access to the user's database.
+    :param token: The token to verify that is a valid user.
+    :return: A list of all basic users.
+    :raises HTTPException: If the token is invalid.
+    """
+    EntitiesRepo().verify_token(token)
+    users = EntitiesRepo().get_basic_users(db_users)
+    return users
+
+
+@app.get('/users/nonAdmin/')
 async def get_non_admin_users(db_users: db_dependency_users, token: str = Depends(oauth2_scheme)):
     """
     Get all non-admin users.

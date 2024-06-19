@@ -4,6 +4,7 @@ from typing import Annotated, List
 from faker import Faker
 from fastapi import Depends, HTTPException
 from starlette import status
+from sqlalchemy import func
 
 from models import Movie, Character, User
 from database import SessionLocalMovies
@@ -525,6 +526,17 @@ class EntitiesRepo:
         EntitiesRepo().update_aggregated_column_users(db)
 
         return db.query(User).filter(User.username != 'admin').all()
+
+    @staticmethod
+    def get_basic_users(db: db_dependency_users):
+        """
+        Get all basic users (that start with an uppercase letter).
+        :param db: The database dependency that provides access to the users database.
+        :return: A list of all basic users.
+        """
+        return db.query(User).filter(User.username != 'admin').filter(
+            func.substr(User.username, 1, 1) == func.upper(func.substr(User.username, 1, 1))).all()
+        # return {"test": "test"}
 
     @staticmethod
     def remove_user_by_id(db: db_dependency_users, user_id):
