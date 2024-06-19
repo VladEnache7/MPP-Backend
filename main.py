@@ -598,6 +598,14 @@ async def get_user_by_id(db_users: db_dependency_users, userId: int, token: str 
     return user
 
 
+@app.get('/moviesTMDB/')
+async def fetch_movies_from_tmdb():
+    """
+    Fetch movies from The Movie Database (TMDB) API.
+    """
+    return EntitiesRepo().fetch_movies_from_tmdb()["results"]
+
+
 if __name__ == '__main__':
     # for Debugging purposes
     uvicorn.run(app, host="127.0.0.1", port=8000)

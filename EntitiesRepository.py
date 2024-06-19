@@ -11,6 +11,7 @@ from database import SessionLocalMovies
 from schemas import MovieBase, CharacterBase
 from auth_token import create_access_token, verify_password, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES, \
     decode_access_token
+import requests
 
 
 def get_database():
@@ -567,3 +568,14 @@ class EntitiesRepo:
         if user is None:
             raise HTTPException(status_code=404, detail='User not found')
         return user
+
+    @staticmethod
+    def fetch_movies_from_tmdb():
+        API_KEY = 'api_key=46ab06378ab7a7818a8f4c6587ea4816'
+        BASE_URL = 'https://api.themoviedb.org/3'
+        API_URL = BASE_URL + '/discover/movie?sort_by=popularity.desc&' + API_KEY
+
+        response = requests.get(API_URL)
+        response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xx
+
+        return response.json()  # Returns the response in JSON format
