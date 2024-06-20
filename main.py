@@ -606,6 +606,33 @@ async def fetch_movies_from_tmdb():
     return EntitiesRepo().fetch_movies_from_tmdb()["results"]
 
 
+@app.get('/moviesTMDB/{movie_id}')
+async def fetch_movie_from_tmdb(movie_id: int):
+    """
+    Fetch a movie from The Movie Database (TMDB) API by its id.
+    :param movie_id: The id of the movie to fetch.
+    """
+    return EntitiesRepo().search_tmdb_movie_by_id(movie_id)
+
+
+@app.get('/moviesTMDB/search/{name}')
+async def search_movies_from_tmdb(name: str):
+    """
+    Search for movies in The Movie Database (TMDB) API by a query.
+    :param name:  The query to search for.
+    """
+    return EntitiesRepo().search_tmdb_movies_by_name(name)["results"]
+
+
+@app.get('/moviesTMDB/search/{genre}')
+async def search_movies_by_genre_from_tmdb(genre: str):
+    """
+    Search for movies in The Movie Database (TMDB) API by genre.
+    :param genre: The genre to search for.
+    """
+    return EntitiesRepo().search_tmdb_movies_by_genre(genre)["results"]
+
+
 if __name__ == '__main__':
     # for Debugging purposes
     uvicorn.run(app, host="127.0.0.1", port=8000)

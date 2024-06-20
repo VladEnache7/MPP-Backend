@@ -569,13 +569,134 @@ class EntitiesRepo:
             raise HTTPException(status_code=404, detail='User not found')
         return user
 
+    API_KEY = 'api_key=46ab06378ab7a7818a8f4c6587ea4816'
+    BASE_URL = 'https://api.themoviedb.org/3'
+    API_URL = BASE_URL + '/discover/movie?sort_by=popularity.desc&' + API_KEY
+
     @staticmethod
     def fetch_movies_from_tmdb():
-        API_KEY = 'api_key=46ab06378ab7a7818a8f4c6587ea4816'
-        BASE_URL = 'https://api.themoviedb.org/3'
-        API_URL = BASE_URL + '/discover/movie?sort_by=popularity.desc&' + API_KEY
-
-        response = requests.get(API_URL)
+        """
+        Fetch one page of movies from the TMDB API
+        :return: A list of movies from the TMDB API
+        """
+        response = requests.get(EntitiesRepo.API_URL)
         response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xx
-
         return response.json()  # Returns the response in JSON format
+
+    @staticmethod
+    def search_tmdb_movies_by_name(name: str):
+        """
+        Fetch movies from the TMDB API by name
+        :param name: The name of the movie
+        :return: A list of movies from the TMDB API
+        """
+        response = requests.get(EntitiesRepo.BASE_URL + '/search/movie?' + EntitiesRepo.API_KEY + '&query=' + name)
+        response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xx
+        return response.json()
+
+    @staticmethod
+    def search_tmdb_movie_by_id(movie_id: int):
+        """
+        Fetch a movie from the TMDB API by id
+        :param movie_id: The id of the movie
+        :return: The movie from the TMDB API
+        """
+        response = requests.get(EntitiesRepo.BASE_URL + '/movie/' + str(movie_id) + '?' + EntitiesRepo.API_KEY)
+        response.raise_for_status()
+        return response.json()
+
+    @staticmethod
+    def search_tmdb_movies_by_genre(genre: str):
+        genres = [
+            {
+                "id": 28,
+                "name": "Action"
+            },
+            {
+                "id": 12,
+                "name": "Adventure"
+            },
+            {
+                "id": 16,
+                "name": "Animation"
+            },
+            {
+                "id": 35,
+                "name": "Comedy"
+            },
+            {
+                "id": 80,
+                "name": "Crime"
+            },
+            {
+                "id": 99,
+                "name": "Documentary"
+            },
+            {
+                "id": 18,
+                "name": "Drama"
+            },
+            {
+                "id": 10751,
+                "name": "Family"
+            },
+            {
+                "id": 14,
+                "name": "Fantasy"
+            },
+            {
+                "id": 36,
+                "name": "History"
+            },
+            {
+                "id": 27,
+                "name": "Horror"
+            },
+            {
+                "id": 10402,
+                "name": "Music"
+            },
+            {
+                "id": 9648,
+                "name": "Mystery"
+            },
+            {
+                "id": 10749,
+                "name": "Romance"
+            },
+            {
+                "id": 878,
+                "name": "Science Fiction"
+            },
+            {
+                "id": 10770,
+                "name": "TV Movie"
+            },
+            {
+                "id": 53,
+                "name": "Thriller"
+            },
+            {
+                "id": 10752,
+                "name": "War"
+            },
+            {
+                "id": 37,
+                "name": "Western"
+            }
+        ]
+        """
+        Fetch movies from the TMDB API by genre
+        :param genre: The genre of the movie
+        :return: A list of movies from the TMDB API
+        """
+        # get the genre id from the genre name
+        genre_id = next((item for item in genres if item["name"] == genre), None)
+        if genre_id is None:
+            return {"message": "Genre not found"}
+
+        response = requests.get(
+            EntitiesRepo.BASE_URL + '/discover/movie?' + EntitiesRepo.API_KEY + '&with_genres=' + str(
+                genre_id))  # Example: &with_genres=28
+        response.raise_for_status()
+        return response.json()
