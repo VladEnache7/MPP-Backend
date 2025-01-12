@@ -22,7 +22,7 @@ app = FastAPI()
 # Add CORS middleware to allow requests from the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://localhost:5173'],
+    allow_origins=['*'],
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -80,15 +80,18 @@ async def websocket_endpoint(websocket: WebSocket):
         active_connections.remove(websocket)
 
 
-async def notify_clients():
+async def notify_clients(operation: str, data: dict):
+    message = {
+        "operation": operation,
+        "data": data
+    }
     for connection in active_connections:
-        message = {"message": "New data is available. Please refresh."}
         await connection.send_json(jsonable_encoder(message))
         print(f"Notified {len(active_connections)} clients with message: {message}")
 
 
 @app.get('/movies', response_model=List[MovieModel])
-async def get_movies(db: db_dependency_movies, skip: int = 0, limit: int = 50):
+async def get_movies(db: db_dependency_movies, skip: int = 0, limit: int = 20):
     """
         Retrieves a list of movies from the database.
         This function uses pagination to return a subset of movies. The number of movies to skip and the limit for the number of movies to return can be specified.
@@ -118,7 +121,7 @@ async def get_movies_names(db: db_dependency_movies, token: str = Depends(oauth2
 
 
 @app.get('/movies/{movie_id}', response_model=MovieModel)
-async def get_movie(db: db_dependency_movies, movie_id: int, token: str = Depends(oauth2_scheme)):
+async def get_movie(db: db_dependency_movies, movie_id: int):  # , token: str = Depends(oauth2_scheme)):
     """
         Retrieves a specific movie from the database using its ID.
 
@@ -128,13 +131,13 @@ async def get_movie(db: db_dependency_movies, movie_id: int, token: str = Depend
         :return: The movie with the specified ID.
         :raises: HTTPException: If the movie is not found in the database or the token verification fails.
         """
-    EntitiesRepo().verify_token(token)
+    # EntitiesRepo().verify_token(token)
     movie = EntitiesRepo().get_movie(db, movie_id)
     return movie
 
 
 @app.post('/movies', response_model=MovieModel)
-async def add_movie(db: db_dependency_movies, movie: MovieBase, token: str = Depends(oauth2_scheme)):
+async def add_movie(db: db_dependency_movies, movie: MovieBase):  # , token: str = Depends(oauth2_scheme)):
     """
     Adds a new movie to the database.
 
@@ -144,14 +147,15 @@ async def add_movie(db: db_dependency_movies, movie: MovieBase, token: str = Dep
     :return: The added movie.
     :raises: HTTPException: If the token verification fails.
     """
-    EntitiesRepo().verify_token(token)
+    # EntitiesRepo().verify_token(token)
     added_movie = EntitiesRepo().add_movie(db, movie)
-    await notify_clients()
+    await notify_clients("add", jsonable_encoder(added_movie))
     return added_movie
 
 
 @app.put('/movies/{movie_id}', response_model=MovieModel)
-async def update_movie(db: db_dependency_movies, movie_id: int, movie: MovieBase, token: str = Depends(oauth2_scheme)):
+async def update_movie(db: db_dependency_movies, movie_id: int,
+                       movie: MovieBase):  # , token: str = Depends(oauth2_scheme)):
     """
     Updates a specific movie in the database using its ID.
 
@@ -162,14 +166,14 @@ async def update_movie(db: db_dependency_movies, movie_id: int, movie: MovieBase
     :return: The updated movie.
     :raises: HTTPException: If the movie is not found in the database or the token verification fails.
     """
-    EntitiesRepo().verify_token(token)
+    # EntitiesRepo().verify_token(token)
     updated_movie = EntitiesRepo().update_movie(db, movie_id, movie)
-    await notify_clients()
+    await notify_clients("update", jsonable_encoder(updated_movie))
     return updated_movie
 
 
 @app.delete('/movies/{movie_id}')
-async def delete_movie_by_id(db: db_dependency_movies, movie_id: int, token: str = Depends(oauth2_scheme)):
+async def delete_movie_by_id(db: db_dependency_movies, movie_id: int):  # , token: str = Depends(oauth2_scheme)):
     """
     Delete a movie from the database by its id. If the movie does not exist, return a 404 error.
     :param db: The database dependency that provides access to the movie database.
@@ -178,7 +182,7 @@ async def delete_movie_by_id(db: db_dependency_movies, movie_id: int, token: str
     :raises HTTPException: If the movie does not exist.
     """
     EntitiesRepo().delete_movie_by_id(db, movie_id)
-    await notify_clients()
+    await notify_clients("delete", {"id": movie_id})
     return {'message': 'Movie deleted successfully'}
 
 
