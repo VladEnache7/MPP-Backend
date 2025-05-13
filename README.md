@@ -39,10 +39,7 @@ This section provides a visual overview of the project's architecture and descri
 
 ### 2.1. Architecture Diagram
 
-```
-[Please replace this line with the actual Markdown to embed your new architecture image.
-Example: ![Updated System Architecture Diagram](URL_TO_YOUR_UPDATED_IMAGE.png)]
-```
+![Diagram]{diagram.jpeg)
 *(The diagram illustrates the interaction between the Frontend, Backend (FastAPI App with its Core services including Kafka, specialized LLM services, Vector Stores, and Database), Kafka Broker, and external LLM services like Ollama.)*
 
 ### 2.2. Component Breakdown
