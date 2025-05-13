@@ -185,7 +185,7 @@ Utilizes a Puppeteer script (`gather-article-links.js`) to scrape article URLs f
 import puppeteer from "puppeteer";
 import fs from "fs";
 
-const BASE_URL = "https://www.nbcnews.com/archive/articles";
+const BASE_URL = "https://www.nbcnews.com/archive/articles"; // "https://www.theonion.com"
 const ARTICLE_TAG = ".MonthPage > a"; // CSS Selector for article links
 // ... (rest of the script)
 ```
