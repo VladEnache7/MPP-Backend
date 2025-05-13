@@ -5,96 +5,156 @@
 
 ### 1.1. Project Overview
 
-The **UDLLM News RAG Project** is a comprehensive web application that leverages Retrieval-Augmented Generation (RAG) techniques to process and deliver news-related data. The project comprises two main components:
+The **UDLLM News RAG Project** is an advanced web application leveraging Retrieval-Augmented Generation (RAG) to process and deliver news-related data, now with dual capabilities for standard news and satirical content. The project comprises:
 
-*   **Backend**: A Python-based system responsible for data scraping, processing, RAG implementation, and API services.
-*   **Frontend**: A TypeScript and React-based user interface (Turbo Bassoon) for interactive news consumption and query.
+*   **Backend**: A Python-based system managing data scraping, processing, a sophisticated RAG pipeline with distinct paths for factual and satirical content, API services, and real-time event handling via Kafka.
+*   **Frontend**: A TypeScript and React-based user interface (Turbo Bassoon) for interactive news consumption, satirical content interaction, and user feedback.
 
-The system gathers news articles from NBC News, indexes the content, and utilizes this knowledge base to provide accurate responses to user queries and generate news summaries.
+The system gathers news articles (factual and satirical), indexes them in specialized vector stores, and utilizes this knowledge base to provide contextually accurate and appropriately toned responses.
 
 ### 1.2. Core Features
 
-*   **Retrieval-Augmented Generation (RAG):**
-    *   Combines retrieval with generative models for accurate, context-aware news summaries.
-    *   Grounds generated content in reliable external news data.
-*   **Comprehensive News Coverage:**
-    *   Automated data collection from NBC News archives (2022-2025).
-    *   Efficient storage and indexing for rapid article retrieval.
+*   **Dual-Mode Retrieval-Augmented Generation (RAG):**
+    *   Separate RAG pipelines for factual news and satirical content, ensuring appropriate context and tone.
+    *   Grounds generated content in reliable external news data or curated satirical sources.
+*   **Comprehensive Content Coverage:**
+    *   Automated data collection from NBC News archives (2022-2025) and potentially other sources for satirical content.
+    *   Efficient storage and indexing in distinct vector collections for rapid and context-specific retrieval.
+*   **Event-Driven Architecture with Kafka:**
+    *   Real-time processing of user feedback.
+    *   Asynchronous handling of potentially intensive tasks like satirical content generation.
+    *   Enhanced system decoupling and scalability.
 *   **Interactive User Interface:**
     *   Modern, responsive design for desktop and mobile.
-    *   Intuitive search, filtering, and news navigation.
-*   **Robust API Services:**
-    *   RESTful endpoints for seamless frontend-backend communication.
-    *   Optimized for efficient data transfer.
-*   **Scalability:**
-    *   Designed to handle significant data volumes and concurrent user requests.
+    *   Intuitive search, filtering, news navigation, and satirical content interaction.
+    *   Integrated user feedback mechanism.
+*   **Robust and Specialized API Services:**
+    *   RESTful endpoints for seamless frontend-backend communication, including dedicated endpoints for satirical prompts and feedback.
+*   **Scalability & Modularity:**
+    *   Designed to handle significant data volumes and concurrent user requests, with services that can be scaled independently.
 
-## 2. System Architecture Diagram and Flows
+## 2. System Architecture
 
 This section provides a visual overview of the project's architecture and describes the key components and their interactions.
 
 ### 2.1. Architecture Diagram
 
-![Diagram](diagram.jpeg)
-*(The diagram illustrates the interaction between the Frontend, Backend (FastAPI App with its Core services, Vector Store, and Database), and external LLM services like Ollama and HuggingFace.)*
+```
+[Please replace this line with the actual Markdown to embed your new architecture image.
+Example: ![Updated System Architecture Diagram](URL_TO_YOUR_UPDATED_IMAGE.png)]
+```
+*(The diagram illustrates the interaction between the Frontend, Backend (FastAPI App with its Core services including Kafka, specialized LLM services, Vector Stores, and Database), Kafka Broker, and external LLM services like Ollama.)*
 
-### 2.2. Component Breakdown and Flows
+### 2.2. Component Breakdown
 
-The system is broadly divided into Frontend and Backend components.
+The system is broadly divided into Frontend, Backend, and Messaging Layer components.
 
 #### 2.2.1. Frontend
 
-*   **Client:** The user-facing interface (e.g., a web browser running the Turbo Bassoon React application).
-    *   **Function:** Initiates HTTP requests to the backend based on user interactions (e.g., submitting a query, requesting news summaries).
+*   **Client:** The user-facing React application (Turbo Bassoon).
+    *   **Function:** Initiates HTTP requests to the backend for:
+        *   Standard news queries (`/api/prompt`).
+        *   Satirical content queries (`/api/satirical-prompt`).
+        *   Submitting user feedback (`/api/feedback`).
+        *   System health checks (`/api/health`).
+        *   Managing system prompts (`/api/system-prompts`).
 
 #### 2.2.2. Backend
 
-The backend is built using FastAPI and orchestrates the RAG pipeline.
+Built using FastAPI, orchestrating diverse RAG pipelines and services.
 
-*   **FastAPI App:** The central application server that exposes API endpoints.
-    *   **`/api/prompt`:** Handles user queries that require LLM processing and RAG.
-    *   **`/api/system-prompts`:** Manages system-level prompts.
-    *   **`/api/health`:** Provides a health check for the backend services.
+*   **FastAPI App:** Central application server exposing API endpoints:
+    *   **`POST /api/prompt`:** Handles user queries for standard news, requiring RAG processing via the `LLM Service`.
+    *   **`POST /api/satirical-prompt`:** Handles user queries for satirical content, engaging the `Satirical LLM Service`.
+    *   **`POST /api/feedback`:** Receives user feedback (e.g., likes/dislikes), which is then typically published to the `Kafka Broker` for asynchronous processing.
+    *   **`GET /api/system-prompts`:** Manages (CRUD) system-level prompts via the `Prompt Service`.
+    *   **`GET /api/health`:** Provides a health check, potentially interacting with the `Config Service`.
 
 *   **Core Services:**
-    *   **`LLM Service`:** This is the brain of the RAG pipeline. It orchestrates the process: taking a user prompt, fetching relevant documents from the Vector Store, and then prompting the Ollama LLM with the original query and the retrieved context to generate a response. 
-        *   **Why:** Centralizes the RAG logic, making the system more organized.
-    *   **`Prompt Service`:** This service manages the system prompts, storing and retrieving them from a Database (PostgreSQL). It also handles user feedback like "likes/dislikes" on the LLM's responses, which is crucial for iterative improvement. Furthermore, it interfaces with Ollama/HuggingFace for accessing the LLM and embedding models.
-        *   **Why:** Enables dynamic and adaptable LLM behavior and provides a mechanism for collecting user feedback to refine the system.
+    *   **`LLM Service`:** The brain for the standard news RAG pipeline.
+        *   **Function:** Takes a user prompt, fetches relevant documents from the `Articles Collection` in Qdrant, and prompts an `Ollama LLM` with the original query and retrieved context to generate a factual response.
+        *   **Interactions:** `FastAPI App`, `Vector Store (Articles Collection)`, `Ollama LLM`, `Prompt Service` (for system prompts), `Config Service`.
+    *   **`Satirical LLM Service`:** Dedicated service for generating satirical content.
+        *   **Function:** Handles requests from `/api/satirical-prompt`. It retrieves relevant satirical articles/context from the `Satirical Articles Collection` in Qdrant, constructs prompts using specialized strategies, and interacts with an `Ollama LLM` (potentially a different model or configuration optimized for creative/satirical text). May operate asynchronously with Kafka.
+        *   **Interactions:** `FastAPI App`, `Vector Store (Satirical Articles Collection)`, `Ollama LLM`, `Kafka Service` (for async tasks), `Prompt Service`, `Config Service`.
+    *   **`Prompt Service`:** Manages prompt engineering and user feedback lifecycle.
+        *   **Function:**
+            *   Handles CRUD operations for the `System Prompts Table` in PostgreSQL.
+            *   Processes structured user feedback (likes/dislikes from `/api/feedback`, likely received via Kafka) and stores it in PostgreSQL. This feedback is crucial for iterative improvement of prompt strategies or model fine-tuning.
+            *   Provides prompts to both `LLM Service` and `Satirical LLM Service`.
+        *   **Interactions:** `FastAPI App`, `LLM Service`, `Satirical LLM Service`, `Database (PostgreSQL)`, `Kafka Service` (for consuming feedback events), `Config Service`.
+    *   **`Kafka Service`:** Facilitates event-driven communication and asynchronous processing.
+        *   **Function:** Acts as a producer and consumer for Kafka topics. Publishes events (e.g., new feedback received) and consumes events for tasks like processing feedback by the `Prompt Service` or managing asynchronous generation by the `Satirical LLM Service`.
+        *   **Interactions:** `FastAPI App` (publishing feedback), `Prompt Service` (consuming feedback), `Satirical LLM Service` (consuming generation tasks, publishing results), `Kafka Broker`, `Config Service`.
+    *   **`Config Service`:** Centralized configuration management.
+        *   **Function:** Provides configuration settings (e.g., API keys, model parameters, Kafka topics, feature flags) to all backend services.
+        *   **Why:** Separates configuration from code, simplifying management across different environments.
+        *   **Interactions:** All other Core Services, `FastAPI App`.
 
-*   **Vector Store:**
-    *   **Component:** `Qdrant` is used as the vector database to store an `Articles Collection`. These "articles" are documents that have been processed and converted into vector embeddings (numerical representations).
-    *   **Function:** When a user prompt is received, its embedding is used to search Qdrant for articles with similar embeddings, thus finding the most relevant context.
-    *   **Why Qdrant:** It's a specialized database optimized for fast and efficient similarity searches on large-scale vector data, which is essential for the "Retrieval" step in RAG.
+*   **Vector Store (Qdrant):**
+    *   **`Articles Collection`:** Stores vector embeddings of standard news articles for factual RAG.
+    *   **`Satirical Articles Collection`:** Stores vector embeddings of curated satirical content for humorous RAG.
+    *   **Function:** Enables efficient semantic similarity search for retrieving relevant context for both factual and satirical queries.
+    *   **Why Qdrant:** Specialized for fast, scalable similarity searches on large vector datasets.
 
-*   **Database (Relational):**
-    *   **Component:** `PostgreSQL`.
-    *   **Function:** Used to store structured data such as the `System Prompts Table` and user `likes/dislikes`.
-    *   **Why PostgreSQL:** A robust, open-source relational database well-suited for storing structured data, ensuring data integrity and supporting complex queries if needed.
+*   **Database (Relational - PostgreSQL):**
+    *   **`System Prompts Table`:** Stores predefined system prompts for guiding LLM behavior.
+    *   **`likes/dislikes Table`:** Stores structured user feedback on generated responses.
+    *   **Why PostgreSQL:** Robust, open-source RDBMS for structured data, ensuring data integrity.
 
 *   **External AI Models & Tools:**
-    *   **`Ollama LLM`:** The system uses a Large Language Model (e.g., "mistral" as specified in the code) served via Ollama. This model is responsible for generating the human-like text responses.
-        *   **Why Ollama:** Allows you to run open-source LLMs locally or on your own infrastructure. This provides more control over the models, can be more cost-effective, and can enhance data privacy compared to relying solely on third-party LLM APIs.
-    *   **`Embedding Model (Hugging Face)`:** A model like `BAAI/bge-large-en-v1.5` (from Hugging Face, as in the code) is used to create vector embeddings for both the articles in your database and the incoming user prompts.
-        *   **Why Hugging Face Models:** Hugging Face is a leading platform for accessing a vast array of pre-trained NLP models, including high-quality embedding models critical for the effectiveness of the semantic search in RAG.
+    *   **`Ollama LLM`:** Serves Large Language Models (e.g., "mistral"). Used by both `LLM Service` and `Satirical LLM Service`, potentially with different models or configurations tailored to the task (factual vs. satirical).
+        *   **Why Ollama:** Enables local/self-hosted deployment of open-source LLMs for control, cost-effectiveness, and data privacy.
+    *   **`Embedding Model (e.g., from Hugging Face)`:** (Implicitly used) Models like `BAAI/bge-large-en-v1.5` are used to convert text (articles and user queries) into vector embeddings for storage and search in Qdrant.
+        *   **Why Hugging Face Models:** Access to a wide array of high-quality pre-trained embedding models.
 
-#### 2.2.3. Workflow for a User Prompt (Example for `/api/prompt`)
+#### 2.2.3. Messaging Layer
 
-1.  **Request:** The **Client (Frontend)** sends a user's query (e.g., "What are the latest developments in AI?") to the `/api/prompt` endpoint of the **FastAPI App**.
-2.  **Processing Trigger:** The `prompt_llm` function (or similar handler like `rag_query` in `main.py`) is triggered.
-3.  **Embedding:** The user's query is converted into a vector embedding using the **Embedding Model (HuggingFace)**.
-4.  **Retrieval:** This query embedding is used to search the **Articles Collection** in **Qdrant**. Qdrant returns the most semantically similar articles (or chunks of articles).
-5.  **Augmentation & Generation:** The retrieved articles (context) are combined with the original user query. This augmented input, potentially including a system prompt retrieved by the **Prompt Service**, is then sent to the **Ollama LLM**.
-6.  **Response Generation:** The **Ollama LLM** generates a response based on the query and the provided context. Metadata (like title and URL) from the retrieved source articles might also be extracted.
-7.  **Response to Client:** The final response, along with any source article metadata, is sent back through the FastAPI App to the **Client**.
+*   **`Kafka Broker`:** The central message bus for the event-driven aspects of the architecture.
+    *   **Function:** Receives messages (events) from producers (e.g., `FastAPI App` upon feedback submission, `Kafka Service`) and delivers them to consumers (e.g., `Kafka Service` for `Prompt Service` or `Satirical LLM Service`).
+    *   **Why Kafka:** Enables decoupling of services, asynchronous processing, improved fault tolerance, and scalability for real-time data streams.
 
-#### 2.2.4. Why This Architecture is Effective
+### 2.3. Key Workflows
 
-*   **Enhanced Accuracy & Relevance:** The RAG approach grounds the LLM's responses in the specific data you provide (your Articles Collection), reducing the chances of "hallucination" and ensuring responses are relevant to your document set.
-*   **Modularity & Scalability:** Separating concerns into different services (FastAPI for API, LLM Service for orchestration, Qdrant for vector search, PostgreSQL for relational data) makes the system easier to develop, test, maintain, and scale individual components.
-*   **Flexibility with Models:** Using Ollama and Hugging Face models allows you to experiment with and switch out different LLMs and embedding models as new or better ones become available, adapting to the rapidly evolving AI landscape.
-*   **Control & Customization:** Self-hosting models with Ollama and managing your own data in Qdrant gives you significant control over your AI pipeline, data privacy, and system behavior.
-*   **Feedback Loop:** The planned likes/dislikes feature (managed by the Prompt Service and stored in PostgreSQL) is vital for creating an iterative improvement cycle, allowing the system to learn from user interactions and refine its performance over time.
+#### 2.3.1. Standard News Query Workflow (`/api/prompt`)
+
+1.  **Request:** Client sends a query to `/api/prompt`.
+2.  **Routing:** FastAPI routes to `LLM Service`.
+3.  **Embedding:** Query is converted to a vector embedding.
+4.  **Retrieval:** `LLM Service` queries `Articles Collection` in Qdrant for relevant articles.
+5.  **Augmentation & Generation:** Retrieved context + original query (and system prompt from `Prompt Service`) are sent to an `Ollama LLM`.
+6.  **Response:** LLM generates a factual response; metadata is extracted.
+7.  **Return:** Response and sources are returned to the Client.
+
+#### 2.3.2. Satirical Content Query Workflow (`/api/satirical-prompt`)
+
+1.  **Request:** Client sends a query to `/api/satirical-prompt`.
+2.  **Routing:** FastAPI routes to `Satirical LLM Service`.
+3.  **Embedding:** Query is converted to a vector embedding.
+4.  **Retrieval:** `Satirical LLM Service` queries `Satirical Articles Collection` in Qdrant.
+5.  **Prompting & Generation (potentially asynchronous via Kafka):**
+    *   Retrieved satirical context + query (and specialized system prompt) are sent to an `Ollama LLM` (optimized for satire).
+    *   If asynchronous: Task might be published to Kafka by `Satirical LLM Service`, processed by a worker consuming from Kafka, then result sent back or notified.
+6.  **Response:** LLM generates a satirical response.
+7.  **Return:** Satirical response is returned to the Client.
+
+#### 2.3.3. User Feedback Workflow (`/api/feedback`)
+
+1.  **Request:** Client submits feedback (e.g., like/dislike) to `/api/feedback`.
+2.  **Publish Event:** FastAPI (or `Kafka Service` directly) publishes a feedback event to a specific topic in `Kafka Broker`.
+3.  **Consume Event:** `Kafka Service` consumes the feedback event.
+4.  **Process & Store:** The consumed event is passed to the `Prompt Service`, which processes the feedback (e.g., aggregates ratings) and stores it in the `likes/dislikes` table in PostgreSQL.
+5.  **Future Improvement:** This stored feedback can be used for analyzing response quality, refining prompts, or even fine-tuning models.
+
+### 2.4. Why This Enhanced Architecture is Effective
+
+*   **Specialized Content Handling:** Dedicated services and data stores for factual vs. satirical content ensure appropriate tone, context, and quality for diverse user needs.
+*   **Improved Responsiveness & Scalability with Kafka:** Asynchronous processing for feedback and potentially complex generation tasks prevents blocking API calls and allows services to scale independently.
+*   **Enhanced Accuracy & Relevance:** RAG grounds LLM responses in curated data, minimizing hallucinations and tailoring outputs.
+*   **Robust Feedback Loop:** Structured feedback collection via Kafka and PostgreSQL enables continuous improvement of the system's performance and content quality.
+*   **Modularity & Maintainability:** Clear separation of concerns into microservices makes the system easier to develop, test, deploy, and maintain.
+*   **Flexibility with Models:** Ollama and Hugging Face integration allows for easy experimentation and swapping of LLMs and embedding models.
+*   **Control & Customization:** Self-hosting models and managing data provides significant control over the AI pipeline and data privacy.
 
 ## 3. Backend Details
 
@@ -103,16 +163,21 @@ The backend is built using FastAPI and orchestrates the RAG pipeline.
 *   **Programming Language:** Python
 *   **Frameworks/Libraries:**
     *   FastAPI (API Management)
-    *   LlamaIndex (Core RAG orchestration, integrating vector stores and LLMs)
-    *   Qdrant (Client library for vector database interaction)
-    *   HuggingFace Transformers/Sentence-Transformers (for embedding models)
-    *   Puppeteer (via Node.js for Web Scraping - executed as separate scripts)
+    *   LlamaIndex (Core RAG orchestration)
+    *   Qdrant Client (Vector database interaction)
+    *   HuggingFace Transformers/Sentence-Transformers (Embedding models)
+    *   `confluent-kafka-python` or `kafka-python` (Kafka client library)
+    *   Puppeteer (via Node.js for Web Scraping - if still applicable for both content types)
     *   Pandas / NumPy (Data Processing)
-*   **Database:** PostgreSQL (Relational Data: System Prompts, Feedback), Qdrant (Vector Data: Articles Collection)
+*   **Databases:**
+    *   PostgreSQL (Relational Data: System Prompts, Feedback)
+    *   Qdrant (Vector Data: Articles Collection, Satirical Articles Collection)
+*   **Messaging:** Apache Kafka (Kafka Broker)
 *   **LLM Serving:** Ollama
-*   **External LLM Interfaces:** Client libraries for Ollama, HuggingFace.
+*   **External LLM Interfaces:** Client libraries for Ollama.
 
 ### 3.2. Data Collection & Processing
+
 
 #### 3.2.1. Article Link Collection
 Utilizes a Puppeteer script (`gather-article-links.js`) to scrape article URLs from NBC News archives.
@@ -142,22 +207,25 @@ const date = await page.evaluate(() => {
 // ...
 ```
 *Data Structure (per article before embedding):*
-```json
+```json 
 {
   "title": "Article headline text",
   "url": "https://www.nbcnews.com/article-path",
   "content": ["Paragraph 1", "Paragraph 2", "..."],
-  "date": "2025-04-15T14:30:00Z"
+  "date": "2025-04-15T14:30:00Z",
+  "type": "factual or satirical"
 }
 ```
 
 ### 3.3. API Endpoints (Summary)
 
-*   **`POST /api/prompt`**: Main endpoint for user queries requiring RAG processing.
-*   **`GET /api/system-prompts`**: Endpoint for managing system prompts (behavior might include POST/PUT/DELETE for full CRUD).
+*   **`POST /api/prompt`**: Main endpoint for factual RAG queries.
+*   **`POST /api/satirical-prompt`**: Endpoint for satirical RAG queries.
+*   **`POST /api/feedback`**: Endpoint for submitting user feedback.
+*   **`GET /api/system-prompts`**: (And `POST`, `PUT`, `DELETE`) For CRUD operations on system prompts.
 *   **`GET /api/health`**: Health check for the backend.
 
-## 4. Frontend Details (Turbo Bassoon)
+## 4. Frontend Details 
 
 ### 4.1. Technology Stack
 
@@ -189,6 +257,22 @@ The frontend interacts with the backend API endpoints defined in section 2.2.2 a
     export const submitPrompt = async (userQuery: string) => {
       const response = await axios.post(`${API_URL}/api/prompt`, { query: userQuery }); // Adjust payload as needed based on actual API definition in main.py
       return response.data; // Contains generated summary or relevant data
+    };
+    ```
+*   **Querying Satirical Content (via `/api/satirical-prompt`):**
+    ```typescript
+    // Example: src/services/api.ts
+    export const submitSatiricalPrompt = async (userQuery: string) => {
+      const response = await axios.post(`${API_URL}/api/satirical-prompt`, { query: userQuery });
+      return response.data;
+    };
+    ```
+*   **Submitting Feedback (via `/api/feedback`):**
+    ```typescript
+    // Example: src/services/api.ts
+    export const submitUserFeedback = async (feedbackData: { responseId: string; liked: boolean; comment?: string }) => {
+      const response = await axios.post(`${API_URL}/api/feedback`, feedbackData);
+      return response.data;
     };
     ```
 *   **Managing System Prompts (via `/api/system-prompts`):** (Implementation would depend on UI for this)
