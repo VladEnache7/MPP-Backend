@@ -39,7 +39,8 @@ This section provides a visual overview of the project's architecture and descri
 
 ### 2.1. Architecture Diagram
 
-![Diagram]{diagram.jpeg)
+![image](https://github.com/user-attachments/assets/9bc42709-5462-462b-9bcc-6de99f89679c)
+
 *(The diagram illustrates the interaction between the Frontend, Backend (FastAPI App with its Core services including Kafka, specialized LLM services, Vector Stores, and Database), Kafka Broker, and external LLM services like Ollama.)*
 
 ### 2.2. Component Breakdown
